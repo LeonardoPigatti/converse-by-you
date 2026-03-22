@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
-import styles from './Viewer.module.css'
 
-export default function Viewer({ colorMap, activePart, targetView, onLoaded }) {
+export default function Viewer({ colorMap, activePart, targetView, onLoaded, bgColor = '#ebebeb' }) {
   const canvasRef = useRef(null)
   const stateRef = useRef({
     renderer: null,
@@ -22,30 +21,29 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded }) {
     const canvas = canvasRef.current
     const st = stateRef.current
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false })
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.outputEncoding = THREE.sRGBEncoding
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.0
+    renderer.toneMappingExposure = 1.1
+    renderer.setClearColor(new THREE.Color(bgColor), 1)
     st.renderer = renderer
 
-    // Scene + Camera
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 100)
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 100)
     st.scene = scene
     st.camera = camera
 
-    // Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 1.2))
-    const dir1 = new THREE.DirectionalLight(0xffffff, 1.5)
-    dir1.position.set(3, 5, 4)
+    // Lighting — bright and clean like Converse site
+    scene.add(new THREE.AmbientLight(0xffffff, 1.4))
+    const dir1 = new THREE.DirectionalLight(0xffffff, 1.6)
+    dir1.position.set(2, 4, 5)
     scene.add(dir1)
-    const dir2 = new THREE.DirectionalLight(0xffffff, 0.6)
-    dir2.position.set(-3, 2, -2)
+    const dir2 = new THREE.DirectionalLight(0xffffff, 0.8)
+    dir2.position.set(-4, 2, -2)
     scene.add(dir2)
-    const dir3 = new THREE.DirectionalLight(0xffffff, 0.4)
-    dir3.position.set(0, -2, 3)
+    const dir3 = new THREE.DirectionalLight(0xffffff, 0.5)
+    dir3.position.set(0, -3, 2)
     scene.add(dir3)
 
     // Load GLB
@@ -57,16 +55,14 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded }) {
 
       model.traverse(child => {
         if (!child.isMesh) return
-        // Fix transparency bug from alphaMode: BLEND
         child.material.transparent = false
         child.material.alphaTest = 0
         child.material.depthWrite = true
         child.material.side = THREE.FrontSide
-        child.material.roughness = 0.75
+        child.material.roughness = 0.8
         child.material.metalness = 0.0
         child.material.needsUpdate = true
         child.castShadow = true
-        child.receiveShadow = true
         st.meshes.push(child)
       })
 
@@ -76,13 +72,12 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded }) {
       const scale = 1.8 / Math.max(size.x, size.y, size.z)
       model.scale.setScalar(scale)
       const box2 = new THREE.Box3().setFromObject(model)
-      const center2 = box2.getCenter(new THREE.Vector3())
-      model.position.sub(center2)
+      model.position.sub(box2.getCenter(new THREE.Vector3()))
 
       onLoaded?.()
     })
 
-    // Orbit controls
+    // Orbit
     const onMouseDown = (e) => { st.dragging = true; st.prev = { x: e.clientX, y: e.clientY } }
     const onMouseUp = () => { st.dragging = false }
     const onMouseMove = (e) => {
@@ -115,7 +110,6 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded }) {
     canvas.addEventListener('touchmove', onTouchMove, { passive: false })
     canvas.addEventListener('touchend', onTouchEnd)
 
-    // Resize
     const resize = () => {
       const w = canvas.parentElement.clientWidth
       const h = canvas.parentElement.clientHeight
@@ -126,7 +120,6 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded }) {
     window.addEventListener('resize', resize)
     resize()
 
-    // Animation loop
     const lookAt = new THREE.Vector3(0, 0, 0)
     const animate = () => {
       st.animId = requestAnimationFrame(animate)
@@ -157,32 +150,26 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded }) {
     }
   }, [])
 
-  // Apply colors whenever colorMap changes
+  // Apply colors
   useEffect(() => {
-    const { meshes } = stateRef.current
-    meshes.forEach(mesh => {
+    stateRef.current.meshes.forEach(mesh => {
       const pName = mesh.parent?.name || ''
-      let hex = '#ffffff'
-      if (pName === 'a_lp') hex = colorMap['outsideBody']
-      else if (pName === 'b_lp') hex = colorMap['rubber']
-      mesh.material.color.set(hex)
+      if (pName === 'a_lp') mesh.material.color.set(colorMap['outsideBody'])
+      else if (pName === 'b_lp') mesh.material.color.set(colorMap['rubber'])
       mesh.material.needsUpdate = true
     })
   }, [colorMap])
 
-  // Apply view changes
+  // Apply view
   useEffect(() => {
     if (!targetView) return
-    const st = stateRef.current
-    st.tgt.theta = targetView.theta
-    st.tgt.phi = targetView.phi
-    st.tgt.r = targetView.r
+    stateRef.current.tgt = { ...targetView }
   }, [targetView])
 
   return (
-    <div className={styles.wrap}>
-      <canvas ref={canvasRef} className={styles.canvas} />
-      <div className={styles.hint}>Arraste para girar · Scroll para zoom</div>
-    </div>
+    <canvas
+      ref={canvasRef}
+      style={{ width: '100%', height: '100%', display: 'block', cursor: 'grab' }}
+    />
   )
 }
