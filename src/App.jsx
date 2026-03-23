@@ -40,7 +40,6 @@ export default function App() {
       <div style={s.topBar}>
         <div>
           <div style={s.productName}>Converse Custom Chuck Taylor All Star High Top</div>
-          <div style={s.price}>$90</div>
         </div>
         <button style={s.doneBtn}>Done</button>
       </div>
@@ -97,8 +96,8 @@ export default function App() {
           {/* Right: menu */}
           <button style={s.menuBtn} onClick={() => setMenuOpen(true)}>
             <svg width="18" height="13" viewBox="0 0 18 13" fill="none">
-              <line x1="0" y1="1" x2="18" y2="1" stroke="#333" strokeWidth="1.5"/>
-              <line x1="0" y1="6.5" x2="18" y2="6.5" stroke="#333" strokeWidth="1.5"/>
+              <line x1="0" y1="1" x2="18" y2="1" stroke="#000000" strokeWidth="1.5"/>
+              <line x1="0" y1="6.5" x2="18" y2="6.5" stroke="#000000" strokeWidth="1.5"/>
               <line x1="0" y1="12" x2="18" y2="12" stroke="#333" strokeWidth="1.5"/>
             </svg>
             <span style={s.menuLabel}>Menu</span>
@@ -187,8 +186,8 @@ const s = {
   },
   productName: {
     fontSize: 13,
-    color: '#111',
-    fontWeight: 400,
+    color: '#000000',
+    fontWeight: 600,
     lineHeight: 1.4,
   },
   price: {
@@ -197,16 +196,19 @@ const s = {
     marginTop: 2,
   },
   doneBtn: {
-    fontSize: 14,
-    color: '#111',
-    background: 'none',
-    border: 'none',
+    fontSize: 13,
+    color: '#333',
+    background: 'rgba(255,255,255,0.85)',
+    border: '1.5px solid #ccc',
+    borderRadius: 999,
     cursor: 'pointer',
     fontFamily: 'inherit',
-    fontWeight: 400,
-    textDecoration: 'underline',
-    textUnderlineOffset: 3,
-    padding: 0,
+    fontWeight: 500,
+    padding: '7px 20px',
+    backdropFilter: 'blur(4px)',
+    letterSpacing: '0.02em',
+    transition: 'border-color 0.15s, box-shadow 0.15s',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
   },
   viewerWrap: {
     flex: 1,
@@ -299,14 +301,37 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    background: 'none',
-    border: 'none',
+    background: 'rgba(255,255,255,0.85)',
+    border: '1.5px solid #ccc',
+    borderRadius: 999,
     cursor: 'pointer',
     flexShrink: 0,
+    padding: '7px 16px',
+    backdropFilter: 'blur(4px)',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+    transition: 'border-color 0.15s',
+  },
+  menuPillBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    background: 'rgba(255,255,255,0.85)',
+    border: '1.5px solid #ccc',
+    borderRadius: 999,
+    cursor: 'pointer',
+    padding: '7px 16px',
+    backdropFilter: 'blur(4px)',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+    fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif',
+    fontSize: 14,
+    fontWeight: 400,
+    color: '#111',
+    flexShrink: 0,
+    transition: 'border-color 0.15s',
   },
   menuLabel: {
     fontSize: 14,
-    color: '#111',
+    color: '#000000',
     fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif',
     fontWeight: 400,
   },
