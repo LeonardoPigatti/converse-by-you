@@ -329,7 +329,6 @@ const zs = {
     height: 16,
     borderRadius: '50%',
     background: '#fff',
-    border: '2px solid #000000',
     boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
     cursor: 'grab',
     transition: 'bottom 0.05s',

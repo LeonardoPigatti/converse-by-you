@@ -21,6 +21,7 @@ export default function App() {
   const [loaded, setLoaded] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [hoveredColor, setHoveredColor] = useState(null)
+  const [panelOpen, setPanelOpen] = useState(true)
 
   const activePart = PARTS[activeIndex]
   const palette = PALETTES[activePart.id] || []
@@ -67,9 +68,9 @@ export default function App() {
         {/* Row 1: navigation */}
         <div style={s.navRow}>
           {/* Left: collapse button */}
-          <button style={s.iconCircleBtn} onClick={() => setMenuOpen(true)}>
-            <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
-              <path d="M1 1.5L6 6.5L11 1.5" stroke="#333" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <button style={s.iconCircleBtn} onClick={() => setPanelOpen(o => !o)}>
+            <svg width="12" height="8" viewBox="0 0 12 8" fill="none" style={{ transform: panelOpen ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.25s' }}>
+              <path d="M1 1.5L6 6.5L11 1.5" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
 
@@ -105,27 +106,29 @@ export default function App() {
         </div>
 
         {/* Row 2: swatches */}
-        <div style={s.swatchRow}>
-          {palette.map(color => (
-            <button
-              key={color}
-              onClick={() => setColor(color)}
-              onMouseEnter={() => setHoveredColor(color)}
-              onMouseLeave={() => setHoveredColor(null)}
-              style={{
-                ...s.swatch,
-                background: color,
-                boxShadow: currentColor === color
-                  ? '0 0 0 2px #fff, 0 0 0 4px #333'
-                  : '0 0 0 1px rgba(0,0,0,0.15)',
-                transform: currentColor === color ? 'scale(1.1)' : 'scale(1)',
-              }}
-            />
-          ))}
-        </div>
+        {panelOpen && (
+          <div style={s.swatchRow}>
+            {palette.map(color => (
+              <button
+                key={color}
+                onClick={() => setColor(color)}
+                onMouseEnter={() => setHoveredColor(color)}
+                onMouseLeave={() => setHoveredColor(null)}
+                style={{
+                  ...s.swatch,
+                  background: color,
+                  boxShadow: currentColor === color
+                    ? '0 0 0 2px #fff, 0 0 0 4px #333'
+                    : '0 0 0 1px rgba(0,0,0,0.15)',
+                  transform: currentColor === color ? 'scale(1.1)' : 'scale(1)',
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Row 3: color name */}
-        <div style={s.colorName}>{colorLabel}</div>
+        {panelOpen && <div style={s.colorName}>{colorLabel}</div>}
       </div>
 
       {/* MENU DRAWER */}
@@ -244,6 +247,8 @@ const s = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: 18,
+    transition: 'padding 0.25s',
+    overflow: 'hidden',
   },
   navRow: {
     width: '100%',
