@@ -275,6 +275,7 @@ const s = {
     gap: 24,
     flex: 1,
     justifyContent: 'center',
+    marginLeft: '90px',
   },
   arrowBtn: {
     fontSize: 20,

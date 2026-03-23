@@ -6,9 +6,32 @@ const MIN_R = 1.2
 const MAX_R = 6.0
 const DEFAULT_R = 3.0
 
-// Convert radius to zoom % (inverted: closer = more zoom)
 const rToZoom = (r) => Math.round((1 - (r - MIN_R) / (MAX_R - MIN_R)) * 100)
 const zoomToR = (z) => MIN_R + (1 - z / 100) * (MAX_R - MIN_R)
+
+// Gera textura oval com gradiente radial para simular sombra projetada
+function createBlobShadowTexture() {
+  const w = 512
+  const h = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')
+  // Escala para desenhar um círculo e depois esticar via canvas
+  ctx.save()
+  ctx.scale(1, 0.5) // oval achatado
+  const cx = w / 2
+  const cy = h            // centro já escalado
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.42)
+  grad.addColorStop(0,    'rgba(0,0,0,0.7)')
+  grad.addColorStop(0.35, 'rgba(0,0,0,0.45)')
+  grad.addColorStop(0.7,  'rgba(0,0,0,0.15)')
+  grad.addColorStop(1,    'rgba(0,0,0,0)')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, w, h * 2)
+  ctx.restore()
+  return new THREE.CanvasTexture(canvas)
+}
 
 export default function Viewer({ colorMap, activePart, targetView, onLoaded, bgColor = '#ebebeb' }) {
   const canvasRef = useRef(null)
@@ -27,19 +50,17 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded, bgC
     animId: null,
   })
 
-  // Sync zoom state from r value
   const syncZoom = useCallback((r) => {
     setZoom(rToZoom(r))
   }, [])
 
-  // Init Three.js once
   useEffect(() => {
     const canvas = canvasRef.current
     const st = stateRef.current
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.outputEncoding = THREE.sRGBEncoding
+    renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.1
     renderer.setClearColor(new THREE.Color(bgColor), 1)
@@ -86,10 +107,34 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded, bgC
       const box2 = new THREE.Box3().setFromObject(model)
       model.position.sub(box2.getCenter(new THREE.Vector3()))
 
+      // ── Blob shadow ──────────────────────────────────
+      const box3 = new THREE.Box3().setFromObject(model)
+      const floorY = box3.min.y - 0.01
+
+      const blobTex = createBlobShadowTexture()
+      const blobGeo = new THREE.PlaneGeometry(2.6, 3.5)
+      const blobMat = new THREE.MeshBasicMaterial({
+        map: blobTex,
+        transparent: true,
+        opacity: 1.0,
+        depthWrite: false,
+        blending: THREE.MultiplyBlending,
+      })
+      const blobMesh = new THREE.Mesh(blobGeo, blobMat)
+      blobMesh.rotation.x = -Math.PI / 2
+      // Desce além do piso — dá sensação de tênis levemente acima do chão
+      blobMesh.position.y = floorY - 0.18
+      // Desloca levemente, como sombra projetada pela luz
+      blobMesh.position.z = 0.15
+      blobMesh.position.x = 0.1
+      blobMesh.renderOrder = -1
+      scene.add(blobMesh)
+      // ─────────────────────────────────────────────────
+
       onLoaded?.()
     })
 
-    // Canvas orbit
+    // ── Orbit (mouse) ─────────────────────────────────
     const onMouseDown = (e) => { st.dragging = true; st.prev = { x: e.clientX, y: e.clientY } }
     const onMouseUp = () => { st.dragging = false }
     const onMouseMove = (e) => {
@@ -103,6 +148,8 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded, bgC
       syncZoom(st.tgt.r)
       e.preventDefault()
     }
+
+    // ── Orbit (touch) ─────────────────────────────────
     let prevTouch = null
     const onTouchStart = (e) => { prevTouch = e.touches[0] }
     const onTouchMove = (e) => {
@@ -123,6 +170,7 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded, bgC
     canvas.addEventListener('touchmove', onTouchMove, { passive: false })
     canvas.addEventListener('touchend', onTouchEnd)
 
+    // ── Resize ────────────────────────────────────────
     const resize = () => {
       const wrap = canvas.parentElement
       const w = wrap.clientWidth
@@ -134,12 +182,13 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded, bgC
     window.addEventListener('resize', resize)
     resize()
 
+    // ── Render loop ───────────────────────────────────
     const lookAt = new THREE.Vector3(0, 0, 0)
     const animate = () => {
       st.animId = requestAnimationFrame(animate)
       st.sph.theta += (st.tgt.theta - st.sph.theta) * 0.09
-      st.sph.phi += (st.tgt.phi - st.sph.phi) * 0.09
-      st.sph.r += (st.tgt.r - st.sph.r) * 0.09
+      st.sph.phi   += (st.tgt.phi   - st.sph.phi)   * 0.09
+      st.sph.r     += (st.tgt.r     - st.sph.r)     * 0.09
       camera.position.set(
         st.sph.r * Math.sin(st.sph.phi) * Math.sin(st.sph.theta),
         st.sph.r * Math.cos(st.sph.phi),
@@ -164,7 +213,7 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded, bgC
     }
   }, [])
 
-  // Colors
+  // ── Cores ─────────────────────────────────────────────
   useEffect(() => {
     stateRef.current.meshes.forEach(mesh => {
       const pName = mesh.parent?.name || ''
@@ -174,14 +223,14 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded, bgC
     })
   }, [colorMap])
 
-  // External view change
+  // ── View externa ──────────────────────────────────────
   useEffect(() => {
     if (!targetView) return
     stateRef.current.tgt = { ...targetView }
     syncZoom(targetView.r)
   }, [targetView])
 
-  // Slider drag handlers
+  // ── Slider ────────────────────────────────────────────
   const getZoomFromMouseY = useCallback((clientY) => {
     const track = sliderTrackRef.current
     if (!track) return zoom
@@ -220,22 +269,16 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded, bgC
     stateRef.current.tgt.r = zoomToR(newZoom)
   }
 
-  // thumb position: 0% zoom → bottom, 100% zoom → top
-  const thumbPct = zoom // 0–100, 0 = bottom, 100 = top
+  const thumbPct = zoom
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-
-      {/* 3D Canvas */}
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block', cursor: 'grab' }}
       />
 
-      {/* Zoom sidebar — right side */}
       <div style={zs.sidebar}>
-
-        {/* Zoom-in button */}
         <button style={zs.zoomBtn} onClick={() => handleZoomBtn(10)} title="Zoom in">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <line x1="7" y1="1" x2="7" y2="13" stroke="#000000" strokeWidth="1.5" strokeLinecap="round"/>
@@ -243,39 +286,23 @@ export default function Viewer({ colorMap, activePart, targetView, onLoaded, bgC
           </svg>
         </button>
 
-        {/* Slider track */}
-        <div
-          ref={sliderTrackRef}
-          style={zs.track}
-          onMouseDown={handleSliderMouseDown}
-        >
-          {/* Fill bar */}
+        <div ref={sliderTrackRef} style={zs.track} onMouseDown={handleSliderMouseDown}>
           <div style={{ ...zs.fill, height: `${thumbPct}%` }} />
-
-          {/* Thumb */}
-          <div
-            style={{
-              ...zs.thumb,
-              bottom: `calc(${thumbPct}% - 8px)`,
-            }}
-          />
+          <div style={{ ...zs.thumb, bottom: `calc(${thumbPct}% - 8px)` }} />
         </div>
 
-        {/* Zoom-out button */}
         <button style={zs.zoomBtn} onClick={() => handleZoomBtn(-10)} title="Zoom out">
           <svg width="14" height="2" viewBox="0 0 14 2" fill="none">
             <line x1="1" y1="1" x2="13" y2="1" stroke="#000000" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
         </button>
 
-        {/* Zoom % label */}
         <div style={zs.label}>{zoom}%</div>
       </div>
     </div>
   )
 }
 
-// Zoom sidebar styles
 const zs = {
   sidebar: {
     position: 'absolute',
